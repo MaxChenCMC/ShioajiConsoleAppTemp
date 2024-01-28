@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShioajiConsoleApp", "ShioajiConsoleApp.csproj", "{867CED6E-7881-48FA-9ABD-D9B04026958E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{867CED6E-7881-48FA-9ABD-D9B04026958E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{867CED6E-7881-48FA-9ABD-D9B04026958E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{867CED6E-7881-48FA-9ABD-D9B04026958E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{867CED6E-7881-48FA-9ABD-D9B04026958E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB5DD673-E209-455F-AFA6-8D6FB77E9855}
+	EndGlobalSection
+EndGlobal

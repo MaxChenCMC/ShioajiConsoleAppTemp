@@ -21,7 +21,7 @@ namespace ShioajiConsoleApp
             //InitSJ.testCallBack();
 
 
-            foreach (var i in InitSJ.ScannersChangePercentRank(50)) //DateTime.Now.ToString("yyyy-MM-dd")
+            foreach (var i in InitSJ.ScannersChangePercentRank(50))
             {
                 i.Value.ForEach(Console.WriteLine);
                 Console.WriteLine();

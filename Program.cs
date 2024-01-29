@@ -41,7 +41,7 @@ namespace ShioajiConsoleApp
 
             public void Login()
             {
-                string jsonString = File.ReadAllText(@"D:\Sinopac.json");
+                string jsonString = File.ReadAllText(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
                 JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                 _api.Login(root.GetProperty("API_Key").GetString(), root.GetProperty("Secret_Key").GetString());
             }

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Sinopac.Shioaji;
 using System;
 using System.Collections.Generic;
@@ -16,20 +16,19 @@ namespace ShioajiConsoleApp
         {
             SJ InitSJ = new();
             InitSJ.Login();
-
-            //=================================================================
+            //==================================================================
             //InitSJ.testCallBack();
 
 
-            foreach (var i in InitSJ.ScannersChangePercentRank(50))
-            {
-                i.Value.ForEach(Console.WriteLine);
-                Console.WriteLine();
-            }
+            //foreach (var i in InitSJ.ScannersChangePercentRank(50))
+            //{
+            //    i.Value.ForEach(Console.WriteLine);
+            //    Console.WriteLine();
+            //}
 
 
-            //InitSJ.MxfMock( 180_45, 5);
-            //=================================================================
+            InitSJ.MxfMock(18135, 10);
+            //==================================================================
             Console.ReadLine();
         }
 
@@ -48,14 +47,11 @@ namespace ShioajiConsoleApp
             #endregion
 
 
-
-
-
             #region 模擬移停/保本/停損
             public void MxfMock(int argEntryPrice, int argStp)
             {
                 List<double> _temp = new List<double>();
-                while (DateTime.Now < new DateTime(2024, 1, 27, 5, 0, 0))
+                while (DateTime.Now < new DateTime(2024, 1, 30, 5, 0, 0))
                 {
                     List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);
                     var spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
@@ -72,19 +68,20 @@ namespace ShioajiConsoleApp
                             Console.WriteLine($"已拉開故到{argEntryPrice}才會被掃出場");
 
                             //? 要用=因為賭高點會繼創高，若僅用<=就會馬上被掃出場，且怕漏add故同時要or <= argEntryPrice
-                            if (spotClose == (_temp.Max() - argStp) || spotClose <= argEntryPrice)
+                            if (spotClose <= (_temp.Max() - argStp))
                             {
-                                Console.WriteLine($"這裡斷得很莫名");
+                                string desc = spotClose >= argEntryPrice ? "停利" : "保本";
+                                Console.WriteLine($"★{desc}出在{spotClose}。");
                                 break;
                             }
                             else if ((decimal)spotClose <= argEntryPrice)
                             {
-                                //Console.WriteLine($"{}");
+                                string desc = spotClose >= argEntryPrice ? "停利" : "保本";
+                                Console.WriteLine($"★{desc}出在{spotClose}。");
                                 break;
                             }
-                            string desc = spotClose >= argEntryPrice ? "停利" : "保本";
-                            Console.WriteLine($"★{desc}出在{spotClose}。");
-                            break;  //這裡必加不然都已停利or保本了卻還繼續if
+                            Thread.Sleep(5_000);
+                            //break;  //這裡必加不然都已停利or保本了卻還繼續if
                         }
                         else if ((decimal)spotClose <= argEntryPrice - argStp)
                         {
@@ -103,7 +100,7 @@ namespace ShioajiConsoleApp
             public void MxfRealtime(int stp)
             {
                 List<double> _temp = new List<double>();
-                while (DateTime.Now < new DateTime(2024, 1, 27, 5, 0, 0))
+                while (DateTime.Now < new DateTime(2024, 1, 30, 5, 0, 0))
                 {
                     //宣告：庫存、當下報價、成本價
                     List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);

@@ -90,7 +90,7 @@ namespace ShioajiConsoleApp
                                     Thread.Sleep(5_000);
                                 }
                             }
-                            break; //是否這裡也要加？
+                            break; // 目前這樣邏輯對唷 01/30凌晨設18055買，18065時有移保本至18057，漲至18079拉回10點賣在18069
                         }
                         else if ((decimal)spotClose <= argEntryPrice - argStp)
                         {

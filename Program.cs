@@ -27,7 +27,7 @@ namespace ShioajiConsoleApp
             //}
 
 
-            InitSJ.MxfMock(18135, 10);
+            InitSJ.MxfMock(18055, 10);
             //==================================================================
             Console.ReadLine();
         }
@@ -40,13 +40,15 @@ namespace ShioajiConsoleApp
 
             public void Login()
             {
-                string jsonString = File.ReadAllText(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
+                string jsonString = File.ReadAllText("D:"
+                                                    //+ "\\DotnetReactShioaji\\DotnetReactShioaji"
+                                                    + "\\Sinopac.json");
                 JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                 _api.Login(root.GetProperty("API_Key").GetString(), root.GetProperty("Secret_Key").GetString());
             }
             #endregion
 
-
+            
             #region 模擬移停/保本/停損
             public void MxfMock(int argEntryPrice, int argStp)
             {
@@ -55,33 +57,40 @@ namespace ShioajiConsoleApp
                 {
                     List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);
                     var spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
-                    if (true)
+                    if (true )
                     {
                         _temp.Add(spotClose);
                         _temp.Reverse();
                         string result = string.Join(", ", _temp.Take(10));
                         Console.WriteLine($"現在{spotClose}點 \t 過去 10 ticks {result}\nMax is {_temp.Max()} since start");
+                        
 
                         if ((decimal)spotClose >= argEntryPrice + argStp)
                         {
                             argEntryPrice += 2;
                             Console.WriteLine($"已拉開故到{argEntryPrice}才會被掃出場");
-
-                            //? 要用=因為賭高點會繼創高，若僅用<=就會馬上被掃出場，且怕漏add故同時要or <= argEntryPrice
-                            if (spotClose <= (_temp.Max() - argStp))
+                            while (true)
                             {
-                                string desc = spotClose >= argEntryPrice ? "停利" : "保本";
-                                Console.WriteLine($"★{desc}出在{spotClose}。");
-                                break;
+                                spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
+                                _temp.Add(spotClose);
+                                if (spotClose <= (_temp.Max() - argStp))
+                                {
+                                    string desc = spotClose >= argEntryPrice ? "停利" : "保本";
+                                    Console.WriteLine($"★{desc}出在{spotClose}。");
+                                    break;
+                                }
+                                else if ((decimal)spotClose <= argEntryPrice)
+                                {
+                                    Console.WriteLine($"★保本出在{spotClose}。");
+                                    break;
+                                }
+                                else
+                                {
+                                    Console.WriteLine(spotClose);
+                                    Thread.Sleep(5_000);
+                                }
                             }
-                            else if ((decimal)spotClose <= argEntryPrice)
-                            {
-                                string desc = spotClose >= argEntryPrice ? "停利" : "保本";
-                                Console.WriteLine($"★{desc}出在{spotClose}。");
-                                break;
-                            }
-                            Thread.Sleep(5_000);
-                            //break;  //這裡必加不然都已停利or保本了卻還繼續if
+                            break; //是否這裡也要加？
                         }
                         else if ((decimal)spotClose <= argEntryPrice - argStp)
                         {

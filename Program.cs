@@ -20,11 +20,11 @@ namespace ShioajiConsoleApp
             //InitSJ.testCallBack();
 
 
-            //foreach (var i in InitSJ.ScannersChangePercentRank(50))
-            //{
-            //    i.Value.ForEach(Console.WriteLine);
-            //    Console.WriteLine();
-            //}
+            foreach (var i in InitSJ.ScannersChangePercentRank(50))
+            {
+                i.Value.ForEach(Console.WriteLine);
+                Console.WriteLine();
+            }
 
 
             InitSJ.MxfMock(18015, 10);
@@ -41,7 +41,7 @@ namespace ShioajiConsoleApp
             public void Login()
             {
                 string jsonString = File.ReadAllText("D:"
-                                                    //+ "\\DotnetReactShioaji\\DotnetReactShioaji"
+                                                    + "\\DotnetReactShioaji\\DotnetReactShioaji"
                                                     + "\\Sinopac.json");
                 JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                 _api.Login(root.GetProperty("API_Key").GetString(), root.GetProperty("Secret_Key").GetString());

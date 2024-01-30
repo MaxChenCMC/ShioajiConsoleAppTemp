@@ -27,7 +27,35 @@ namespace ShioajiConsoleApp
             }
 
 
-            InitSJ.MxfMock(18015, 10);
+            DateTime DTN = DateTime.Now;
+            bool preMktTime = DTN < DTN.Date + new TimeSpan(5, 00, 0);
+            bool onMktTime = (DTN > DTN.Date + new TimeSpan(8, 45, 0) && DTN < DTN.Date + new TimeSpan(13, 45, 0));
+            DateTime end = preMktTime ? DTN.Date + new TimeSpan(5, 00, 0) : (onMktTime ? DTN.Date + new TimeSpan(13, 45, 0) : DateTime.Now.Date + new TimeSpan(29, 0, 0));
+            while (DateTime.Now < end)
+            {
+                // 1.有部位就依成本價
+                // List<Sinopac.Shioaji.FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
+                // var Pnl = _src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl).FirstOrDefault();
+                // var entry_price = _src.Where(x => x.code.Contains("MXF")).Select(x => x.price).FirstOrDefault();
+
+
+                // if(Pnl >= entry_price)
+                // {
+                //     MxfMock( rtPositions.First().price, decimal 10.0)
+                // }
+                if (false)
+                {
+                    //
+                }
+
+
+                // 2.無部位就主觀抓底點
+                else
+                {
+                    InitSJ.MxfMock((decimal)18015.0, (decimal)10.0);
+                    break;
+                }
+            }
             //==================================================================
             Console.ReadLine();
         }
@@ -41,64 +69,58 @@ namespace ShioajiConsoleApp
             public void Login()
             {
                 string jsonString = File.ReadAllText("D:"
-                                                    + "\\DotnetReactShioaji\\DotnetReactShioaji"
+                                                    //+ "\\DotnetReactShioaji\\DotnetReactShioaji"
                                                     + "\\Sinopac.json");
                 JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                 _api.Login(root.GetProperty("API_Key").GetString(), root.GetProperty("Secret_Key").GetString());
             }
             #endregion
 
-            
-            #region 模擬移停/保本/停損
-            public void MxfMock(int argEntryPrice, int argStp)
-            {
-                List<double> _temp = new List<double>();
-                while (DateTime.Now < new DateTime(2024, 1, 31, 5, 0, 0))
-                {
-                    List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);
-                    var spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
-                    if (true )
-                    {
-                        _temp.Add(spotClose);
-                        _temp.Reverse();
-                        string result = string.Join(", ", _temp.Take(10));
-                        Console.WriteLine($"現在{spotClose}點 \t 過去 10 ticks {result}\nMax is {_temp.Max()} since start");
-                        
 
-                        if ((decimal)spotClose >= argEntryPrice + argStp)
+            #region 模擬移停/保本/停損
+            public void MxfMock(decimal argEntryPrice, decimal argStp)
+            {
+                List<decimal> _temp = new List<decimal>();
+                while (true)
+                {
+                    decimal spotClose = (decimal)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
+                    _temp.Add(spotClose);
+                    _temp.Reverse();
+                    string result = string.Join(", ", _temp.Take(10));
+                    Console.WriteLine($"現在{spotClose}點 \t 過去 10 ticks {result}\n高點{_temp.Max()} since start");
+                    if (spotClose >= argEntryPrice + argStp)
+                    {
+                        argEntryPrice += 2;
+                        Console.WriteLine($"已拉開故到{argEntryPrice}才會被掃出場");
+                        while (true)
                         {
-                            argEntryPrice += 2;
-                            Console.WriteLine($"已拉開故到{argEntryPrice}才會被掃出場");
-                            while (true)
+                            spotClose = (decimal)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
+                            _temp.Add(spotClose);
+                            if (spotClose <= (_temp.Max() - argStp))
                             {
-                                spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
-                                _temp.Add(spotClose);
-                                if (spotClose <= (_temp.Max() - argStp))
-                                {
-                                    string desc = spotClose >= argEntryPrice ? "停利" : "保本";
-                                    Console.WriteLine($"★{desc}出在{spotClose}。");
-                                    break;
-                                }
-                                else if ((decimal)spotClose <= argEntryPrice)
-                                {
-                                    Console.WriteLine($"★保本出在{spotClose}。");
-                                    break;
-                                }
-                                else
-                                {
-                                    Console.WriteLine(spotClose);
-                                    Thread.Sleep(5_000);
-                                }
+                                string desc = spotClose >= argEntryPrice ? "停利" : "保本";
+                                Console.WriteLine($"★{desc}出在{spotClose}。");
+                                break;
                             }
-                            break; // 目前這樣邏輯對唷 01/30凌晨設18055買，18065時有移保本至18057，漲至18079拉回10點賣在18069
+                            else if (spotClose <= argEntryPrice)
+                            {
+                                Console.WriteLine($"★保本出在{spotClose}。");
+                                break;
+                            }
+                            else
+                            {
+                                Console.WriteLine(spotClose);
+                                Thread.Sleep(5_000);
+                            }
                         }
-                        else if ((decimal)spotClose <= argEntryPrice - argStp)
-                        {
-                            Console.WriteLine($"★停損，出在{spotClose}。");
-                            break;
-                        }
-                        Thread.Sleep(5_000);
+                        break;
                     }
+                    else if (spotClose <= argEntryPrice - argStp)
+                    {
+                        Console.WriteLine($"★停損，出在{spotClose}。");
+                        break;
+                    }
+                    else Thread.Sleep(5_000);
                 }
                 Console.WriteLine("★★小台積期：" + _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["QFF"]["QFFR1"] })[0].close);
             }

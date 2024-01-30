@@ -27,7 +27,7 @@ namespace ShioajiConsoleApp
             //}
 
 
-            InitSJ.MxfMock(18055, 10);
+            InitSJ.MxfMock(18015, 10);
             //==================================================================
             Console.ReadLine();
         }
@@ -53,7 +53,7 @@ namespace ShioajiConsoleApp
             public void MxfMock(int argEntryPrice, int argStp)
             {
                 List<double> _temp = new List<double>();
-                while (DateTime.Now < new DateTime(2024, 1, 30, 5, 0, 0))
+                while (DateTime.Now < new DateTime(2024, 1, 31, 5, 0, 0))
                 {
                     List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);
                     var spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;

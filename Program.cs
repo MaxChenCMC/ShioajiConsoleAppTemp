@@ -15,9 +15,9 @@ namespace ShioajiConsoleApp
         static void Main(string[] args)
         {
             SJ InitSJ = new();
-            InitSJ.Login();
+            InitSJ.Login(@"D:\Sinopac.json");
             //==================================================================
-            //InitSJ.testCallBack();
+            InitSJ.testCallBack();
 
 
             //foreach (var i in InitSJ.ScannersChangePercentRank(50))
@@ -27,35 +27,6 @@ namespace ShioajiConsoleApp
             //}
 
 
-            DateTime DTN = DateTime.Now;
-            bool preMktTime = DTN < DTN.Date + new TimeSpan(5, 00, 0);
-            bool onMktTime = (DTN > DTN.Date + new TimeSpan(8, 45, 0) && DTN < DTN.Date + new TimeSpan(13, 45, 0));
-            DateTime end = preMktTime ? DTN.Date + new TimeSpan(5, 00, 0) : (onMktTime ? DTN.Date + new TimeSpan(13, 45, 0) : DateTime.Now.Date + new TimeSpan(29, 0, 0));
-            while (DateTime.Now < end)
-            {
-                // 1.有部位就依成本價
-                // List<Sinopac.Shioaji.FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
-                // var Pnl = _src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl).FirstOrDefault();
-                // var entry_price = _src.Where(x => x.code.Contains("MXF")).Select(x => x.price).FirstOrDefault();
-
-
-                // if(Pnl >= entry_price)
-                // {
-                //     MxfMock( rtPositions.First().price, decimal 10.0)
-                // }
-                if (false)
-                {
-                    //
-                }
-
-
-                // 2.無部位就主觀抓底點
-                else
-                {
-                    InitSJ.MxfMock(17975, 10);
-                    break;
-                }
-            }
             //==================================================================
             Console.ReadLine();
         }
@@ -66,13 +37,47 @@ namespace ShioajiConsoleApp
             #region 登入沒事不會改
             private static Shioaji _api = new Shioaji();
 
-            public void Login()
+            public void Login(string path)
             {
-                string jsonString = File.ReadAllText("D:"
-                                                    //+ "\\DotnetReactShioaji\\DotnetReactShioaji"
-                                                    + "\\Sinopac.json");
+                string jsonString = File.ReadAllText(path);
                 JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                 _api.Login(root.GetProperty("API_Key").GetString(), root.GetProperty("Secret_Key").GetString());
+            }
+            #endregion
+
+
+            #region 即時報價 testCallBack()
+            public void testCallBack()
+            {
+                _api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1);
+                _api.SetQuoteCallback_v1(myQuoteCB_v1);
+            }
+
+            List<dynamic> _temp = new List<dynamic>();
+            private void myQuoteCB_v1(Exchange exchange, dynamic tick)
+            {
+                var rec = new
+                {
+                    ts = DateTime.ParseExact(tick.datetime,
+                                             "yyyy/MM/dd HH:mm:ss.ffffff",
+                                             System.Globalization.CultureInfo.InvariantCulture)
+                                             .ToString("HH:mm:ss"),
+                    close = tick.close,
+                    tick_type = tick.tick_type,  // 1內、2外
+                    chg_type = tick.chg_type,    // 2漲、3平、4跌
+                    //code = tick.code, pct_chg = tick.pct_chg, underlying_price = tick.underlying_price,
+                };
+                _temp.Add(rec);
+
+                if (_temp.Last().close >= 17995)
+                {
+                    Console.WriteLine("條件達成。似乎在myQuoteCB_v1裡只要一有資料更新就會觸發一次");
+                }
+                else
+                {
+                    Console.WriteLine(rec);
+                    Console.WriteLine(_temp.Max(x => x.GetType().GetProperty("close").GetValue(x)));
+                }
             }
             #endregion
 
@@ -123,89 +128,6 @@ namespace ShioajiConsoleApp
                     else Thread.Sleep(5_000);
                 }
                 Console.WriteLine("★★小台積期：" + _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["QFF"]["QFFR1"] })[0].close);
-            }
-            #endregion
-
-
-            #region mxf是否有部位來決定移停/保本/停損
-            public void MxfRealtime(int stp)
-            {
-                List<double> _temp = new List<double>();
-                while (DateTime.Now < new DateTime(2024, 1, 30, 5, 0, 0))
-                {
-                    //宣告：庫存、當下報價、成本價
-                    List<FuturePosition> rtPositions = _api.ListPositions(_api.FutureAccount);
-                    double spotClose = _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
-                    bool cond = rtPositions.Any(x => x.code.Contains("MXF"));
-                    var entry_price = rtPositions.Where(x => x.code.Contains("MXF")).Select(x => x.price).FirstOrDefault();
-
-                    // 有部位 && 未停損arg
-                    //if (cond && rtPositions.Where(x => x.code.Contains("MXF")).Select(x => x.pnl).FirstOrDefault() >= (-50 * stp))
-                    if (true)
-                    {
-                        _temp.Add(spotClose);
-                        _temp.Reverse();
-                        string result = string.Join(", ", _temp.Take(10));
-                        Console.WriteLine($"現在{spotClose}點\n過去 10 ticks {result}");
-
-                        int MOCKentry_price = 18030;
-
-                        // 若漲的有感就保本
-                        if ((decimal)spotClose > MOCKentry_price + 12)
-                        {
-                            MOCKentry_price += 2;  //entry_price += 2;
-                            Console.WriteLine($"已拉開安全邊際故跳出迴圈的條件已改成{MOCKentry_price}保本出場");
-
-                            // 膽小版自高點拉回10就出場
-                            if ((decimal)spotClose <= MOCKentry_price)  //if ((decimal)spotClose <= entry_price)
-                            {
-                                Console.WriteLine($"現在{spotClose}，已從swing high {_temp.Max()}拉回10點");
-                                //賣出函式
-                                break;
-                            }
-                            // 打到保本就停止
-                            else if (spotClose <= _temp.Max() - 10)
-                            {
-                                Console.WriteLine($"打到保本因為現在{spotClose}，已低於{MOCKentry_price}");
-                                //賣出函式
-                                break;
-                            }
-                        }
-                        // 單純看現價比成本低 arg 點就砍
-                        else if ((decimal)spotClose <= MOCKentry_price - stp)
-                        {
-                            //賣出函式
-                            break;
-                        }
-
-                        Thread.Sleep(5_000);
-                        // 一旦break都該傳個pnl summary比較詳細
-                    }
-
-                    else if (cond == false)
-                    {
-                        Console.WriteLine($"因沒mxf部位而結束。現在{spotClose}點");
-                        break;
-                    }
-                }
-                Console.WriteLine("小台積期：" + _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["QFF"]["QFFR1"] })[0].close);
-            }
-            #endregion
-
-
-            #region 即時報價 testCallBack()
-            public void testCallBack()
-            {
-                _api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1);
-                //_api.Subscribe(_api.Contracts.Futures["QFF"]["QFFR1"], QuoteType.tick, version: QuoteVersion.v1);
-                _api.SetQuoteCallback_v1(myQuoteCB_v1);
-            }
-            private static void myQuoteCB_v1(Exchange exchange, dynamic tick)
-            {
-                //tick_type 1內、2外
-                //chg_type  2漲、3平、4跌
-                Console.WriteLine(tick.code + "\t" + tick.datetime + "\t" + tick.underlying_price + "\t" + tick.close + "\t" + tick.tick_type + "\t" + tick.price_chg + "\t" + tick.pct_chg);
-                Thread.Sleep(3000);
             }
             #endregion
 

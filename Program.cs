@@ -20,11 +20,11 @@ namespace ShioajiConsoleApp
             //InitSJ.testCallBack();
 
 
-            foreach (var i in InitSJ.ScannersChangePercentRank(50))
-            {
-                i.Value.ForEach(Console.WriteLine);
-                Console.WriteLine();
-            }
+            //foreach (var i in InitSJ.ScannersChangePercentRank(50))
+            //{
+            //    i.Value.ForEach(Console.WriteLine);
+            //    Console.WriteLine();
+            //}
 
 
             DateTime DTN = DateTime.Now;
@@ -52,7 +52,7 @@ namespace ShioajiConsoleApp
                 // 2.無部位就主觀抓底點
                 else
                 {
-                    InitSJ.MxfMock((decimal)18015.0, (decimal)10.0);
+                    InitSJ.MxfMock(17975, 10);
                     break;
                 }
             }
@@ -78,12 +78,12 @@ namespace ShioajiConsoleApp
 
 
             #region 模擬移停/保本/停損
-            public void MxfMock(decimal argEntryPrice, decimal argStp)
+            public void MxfMock(double argEntryPrice, double argStp)
             {
-                List<decimal> _temp = new List<decimal>();
+                List<double> _temp = new List<double>();
                 while (true)
                 {
-                    decimal spotClose = (decimal)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
+                    double spotClose = (double)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
                     _temp.Add(spotClose);
                     _temp.Reverse();
                     string result = string.Join(", ", _temp.Take(10));
@@ -94,7 +94,7 @@ namespace ShioajiConsoleApp
                         Console.WriteLine($"已拉開故到{argEntryPrice}才會被掃出場");
                         while (true)
                         {
-                            spotClose = (decimal)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
+                            spotClose = (double)_api.Snapshots(new List<IContract>() { _api.Contracts.Futures["TXF"]["TXFR1"] })[0].close;
                             _temp.Add(spotClose);
                             if (spotClose <= (_temp.Max() - argStp))
                             {

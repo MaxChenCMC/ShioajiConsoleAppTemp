@@ -15,10 +15,10 @@ namespace ShioajiConsoleApp
         static void Main(string[] args)
         {
             SJ InitSJ = new();
-            InitSJ.Login(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
+            InitSJ.Login(@"D:\Sinopac.json");
             //==================================================================
             //InitSJ.testCallBack();
-            InitSJ.Thermometer();
+            InitSJ.AmountRankSetQuoteCallback();
 
             //foreach (var i in InitSJ.ScannersChangePercentRank(50))
             //{
@@ -201,44 +201,60 @@ namespace ShioajiConsoleApp
 
 
             #region 溫度計
-            public void Thermometer()
+            public void AmountRankSetQuoteCallback()
             {
-                string argDate;
-                if (DateTime.Now.DayOfWeek.ToString() == "Saturday") argDate = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
-                else if (DateTime.Now.DayOfWeek.ToString() == "Sunday") argDate = DateTime.Now.AddDays(-2).ToString("yyyy-MM-dd");
-                else argDate = DateTime.Now.ToString("yyyy-MM-dd");
-                List<string> tg = _api.Scanners(scannerType: ScannerType.AmountRank, date: argDate, count: 5).Select(x => (string)x.code).ToList();
-                foreach (string i in tg)
+                //List<string> abc = new List<string> { "TXFR1", "QFFR1" };
+                //foreach(var i in abc)
+                //{
+                //    _api.Subscribe(_api.Contracts.Futures[i.Substring(0,3)][i], QuoteType.tick, version: QuoteVersion.v1);
+                //}
+                //_api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1); //TXFB4
+                _api.Subscribe(_api.Contracts.Futures["QFF"]["QFFR1"], QuoteType.tick, version: QuoteVersion.v1); //QFFB4
+
+                List<dynamic> _temp = new List<dynamic>();
+                void myQuoteCB_v1(Exchange exchange, dynamic tick)
                 {
-                    _api.Subscribe(_api.Contracts.Stocks["TSE"][i], QuoteType.tick, version: QuoteVersion.v1);
+                    var rec = new
+                    {
+                        ts = DateTime.ParseExact(tick.datetime,
+                                             "yyyy/MM/dd HH:mm:ss.ffffff",
+                                             System.Globalization.CultureInfo.InvariantCulture)
+                                             .ToString("HH:mm:ss"),
+                        code = tick.code,
+                        //close = tick.close,
+                        tick_type = tick.tick_type,  // 1內、2外
+                        chg_type = tick.chg_type,    // 2漲、3平、4跌
+                    };
+                    _temp.Add(rec); 
+                    //Thread.Sleep(15_000);
+                    //Console.WriteLine(_temp.Where(x => x.code.Contains("TXF")).Select(x => x).LastOrDefault());
+                    Console.WriteLine(_temp.Where(x => x.code.Contains("QFF")).Select(x => x).LastOrDefault());
+
+                    Console.WriteLine("======================================================================");
+                    Console.WriteLine(_temp.Where(x => x.code != "").Select(x => x));
+                    //
+
                 }
-                _api.SetQuoteCallback_v1(myQuoteCB_v2);
-            }
+                _api.SetQuoteCallback_v1(myQuoteCB_v1);
+                //Thread.Sleep(5_000);
+                //Console.WriteLine(_temp);
 
-            List<dynamic> _temp1 = new List<dynamic>();
 
-            private void myQuoteCB_v2(Exchange exchange, dynamic tick)
-            {
-                var rec = new
-                {
-                    code = tick.code,
-                    close = tick.close,
-                    tick_type = tick.tick_type,  // 1內、2外
-                    chg_type = tick.chg_type,    // 2漲、3平、4跌
-                };
-                _temp1.Add(rec);
+                //dynamic res = _temp.Where(x => x.GetType().GetProperty("code").GetValue(x) == "TXFB4").Last();
+                //var a = res.code;
+                //var b = res.tick_type;
+                //var c = res.chg_type;
+                //dynamic res1 = _temp.Where(x => x.GetType().GetProperty("code").GetValue(x) == "QFFB4").Last();
+                //var d = res1.code;
+                //var e = res1.tick_type;
+                //var f = res1.chg_type;
+                //string result = string.Join(", ", (a, b, c), (d, e, f));
+                //Console.WriteLine(result);
 
-                //string top1 = _temp1.Where(x => (string)x.GetType().GetProperty("name").GetValue(x) == "聯發科");
-                //string a = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().code;
-                //string a1 = (string)_temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().close;
-                //string result = string.Join(", ", a, a1);
-                //Console.WriteLine(a,"_", a1);
 
-                var top1code = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().code;
-                var top1tick_type = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().tick_type == 2 ? "↗" : "↙";
-                var top1chg_type = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().chg_type == 2 ? "↗" : "↙";
-                Console.WriteLine($"{top1code}:{top1tick_type}:{top1chg_type}");
-                //Console.WriteLine(top1close);
+
+
+
             }
             #endregion
 

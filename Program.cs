@@ -15,10 +15,10 @@ namespace ShioajiConsoleApp
         static void Main(string[] args)
         {
             SJ InitSJ = new();
-            InitSJ.Login(@"D:\Sinopac.json");
+            InitSJ.Login(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
             //==================================================================
-            InitSJ.testCallBack();
-
+            //InitSJ.testCallBack();
+            InitSJ.Thermometer();
 
             //foreach (var i in InitSJ.ScannersChangePercentRank(50))
             //{
@@ -198,6 +198,50 @@ namespace ShioajiConsoleApp
                 return ret.Where(x => (Double)x.Value[5] >= 0.00).ToDictionary(x => x.Key, x => x.Value);
             }
             #endregion
+
+
+            #region 溫度計
+            public void Thermometer()
+            {
+                string argDate;
+                if (DateTime.Now.DayOfWeek.ToString() == "Saturday") argDate = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+                else if (DateTime.Now.DayOfWeek.ToString() == "Sunday") argDate = DateTime.Now.AddDays(-2).ToString("yyyy-MM-dd");
+                else argDate = DateTime.Now.ToString("yyyy-MM-dd");
+                List<string> tg = _api.Scanners(scannerType: ScannerType.AmountRank, date: argDate, count: 5).Select(x => (string)x.code).ToList();
+                foreach (string i in tg)
+                {
+                    _api.Subscribe(_api.Contracts.Stocks["TSE"][i], QuoteType.tick, version: QuoteVersion.v1);
+                }
+                _api.SetQuoteCallback_v1(myQuoteCB_v2);
+            }
+
+            List<dynamic> _temp1 = new List<dynamic>();
+
+            private void myQuoteCB_v2(Exchange exchange, dynamic tick)
+            {
+                var rec = new
+                {
+                    code = tick.code,
+                    close = tick.close,
+                    tick_type = tick.tick_type,  // 1內、2外
+                    chg_type = tick.chg_type,    // 2漲、3平、4跌
+                };
+                _temp1.Add(rec);
+
+                //string top1 = _temp1.Where(x => (string)x.GetType().GetProperty("name").GetValue(x) == "聯發科");
+                //string a = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().code;
+                //string a1 = (string)_temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().close;
+                //string result = string.Join(", ", a, a1);
+                //Console.WriteLine(a,"_", a1);
+
+                var top1code = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().code;
+                var top1tick_type = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().tick_type == 2 ? "↗" : "↙";
+                var top1chg_type = _temp1.Where(x => x.GetType().GetProperty("code").GetValue(x) == "2330").Last().chg_type == 2 ? "↗" : "↙";
+                Console.WriteLine($"{top1code}:{top1tick_type}:{top1chg_type}");
+                //Console.WriteLine(top1close);
+            }
+            #endregion
+
         }
     }
 }

@@ -203,12 +203,23 @@ namespace ShioajiConsoleApp
             #region 溫度計
             public void AmountRankSetQuoteCallback()
             {
+                string argDate;
+                if (DateTime.Now.DayOfWeek.ToString() == "Saturday") argDate = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+                else if (DateTime.Now.DayOfWeek.ToString() == "Sunday") argDate = DateTime.Now.AddDays(-2).ToString("yyyy-MM-dd");
+                else argDate = DateTime.Now.ToString("yyyy-MM-dd");
+                List<string> tg = _api.Scanners(scannerType: ScannerType.AmountRank, date: argDate, count: 5).Select(x => (string)x.code).ToList();
+                foreach (string i in tg)
+                {
+                    _api.Subscribe(_api.Contracts.Stocks["TSE"][i], QuoteType.tick, version: QuoteVersion.v1);
+                }
+
                 //List<string> abc = new List<string> { "TXFR1", "QFFR1" };
                 //foreach(var i in abc)
                 //{
                 //    _api.Subscribe(_api.Contracts.Futures[i.Substring(0,3)][i], QuoteType.tick, version: QuoteVersion.v1);
                 //}
                 //_api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1); //TXFB4
+
                 _api.Subscribe(_api.Contracts.Futures["QFF"]["QFFR1"], QuoteType.tick, version: QuoteVersion.v1); //QFFB4
 
                 List<dynamic> _temp = new List<dynamic>();
@@ -221,24 +232,15 @@ namespace ShioajiConsoleApp
                                              System.Globalization.CultureInfo.InvariantCulture)
                                              .ToString("HH:mm:ss"),
                         code = tick.code,
-                        //close = tick.close,
-                        tick_type = tick.tick_type,  // 1內、2外
-                        chg_type = tick.chg_type,    // 2漲、3平、4跌
+                        tick_type = tick.tick_type,  // 1內、2外 ☛好像官方文件寫相反了
+                        chg_type = tick.chg_type,    // 2漲、3平、4跌 ☛ 好像只是相對昨收今平，而不是tick的即時狀況
                     };
                     _temp.Add(rec); 
-                    //Thread.Sleep(15_000);
-                    //Console.WriteLine(_temp.Where(x => x.code.Contains("TXF")).Select(x => x).LastOrDefault());
                     Console.WriteLine(_temp.Where(x => x.code.Contains("QFF")).Select(x => x).LastOrDefault());
-
                     Console.WriteLine("======================================================================");
                     Console.WriteLine(_temp.Where(x => x.code != "").Select(x => x));
-                    //
-
                 }
                 _api.SetQuoteCallback_v1(myQuoteCB_v1);
-                //Thread.Sleep(5_000);
-                //Console.WriteLine(_temp);
-
 
                 //dynamic res = _temp.Where(x => x.GetType().GetProperty("code").GetValue(x) == "TXFB4").Last();
                 //var a = res.code;
@@ -250,11 +252,6 @@ namespace ShioajiConsoleApp
                 //var f = res1.chg_type;
                 //string result = string.Join(", ", (a, b, c), (d, e, f));
                 //Console.WriteLine(result);
-
-
-
-
-
             }
             #endregion
 

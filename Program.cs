@@ -15,7 +15,7 @@ namespace ShioajiConsoleApp
         static void Main(string[] args)
         {
             SJ InitSJ = new();
-            InitSJ.Login(@"D:\Sinopac.json");
+            InitSJ.Login(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
             //==================================================================
             //InitSJ.testCallBack();
             InitSJ.AmountRankSetQuoteCallback();
@@ -207,21 +207,23 @@ namespace ShioajiConsoleApp
                 if (DateTime.Now.DayOfWeek.ToString() == "Saturday") argDate = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
                 else if (DateTime.Now.DayOfWeek.ToString() == "Sunday") argDate = DateTime.Now.AddDays(-2).ToString("yyyy-MM-dd");
                 else argDate = DateTime.Now.ToString("yyyy-MM-dd");
-                List<string> tg = _api.Scanners(scannerType: ScannerType.AmountRank, date: argDate, count: 5).Select(x => (string)x.code).ToList();
+                List<string> tg = _api.Scanners(scannerType: ScannerType.AmountRank, date: argDate, count: 10).Select(x => (string)x.code).ToList();
                 foreach (string i in tg)
                 {
-                    _api.Subscribe(_api.Contracts.Stocks["TSE"][i], QuoteType.tick, version: QuoteVersion.v1);
+                    try
+                    {
+                        _api.Subscribe(_api.Contracts.Stocks["TSE"][i], QuoteType.tick, version: QuoteVersion.v1);
+                    }
+                    catch (Exception ex)
+                    {
+                        _api.Subscribe(_api.Contracts.Stocks["OTC"][i], QuoteType.tick, version: QuoteVersion.v1);
+                    }
                 }
-
                 //List<string> abc = new List<string> { "TXFR1", "QFFR1" };
                 //foreach(var i in abc)
                 //{
                 //    _api.Subscribe(_api.Contracts.Futures[i.Substring(0,3)][i], QuoteType.tick, version: QuoteVersion.v1);
                 //}
-                //_api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1); //TXFB4
-
-                _api.Subscribe(_api.Contracts.Futures["QFF"]["QFFR1"], QuoteType.tick, version: QuoteVersion.v1); //QFFB4
-
                 List<dynamic> _temp = new List<dynamic>();
                 void myQuoteCB_v1(Exchange exchange, dynamic tick)
                 {
@@ -232,26 +234,21 @@ namespace ShioajiConsoleApp
                                              System.Globalization.CultureInfo.InvariantCulture)
                                              .ToString("HH:mm:ss"),
                         code = tick.code,
-                        tick_type = tick.tick_type,  // 1內、2外 ☛好像官方文件寫相反了
-                        chg_type = tick.chg_type,    // 2漲、3平、4跌 ☛ 好像只是相對昨收今平，而不是tick的即時狀況
+                        // 1內、2外 ☛好像官方文件 tick_type 寫相反了
+                        tick_type = tick.tick_type, //== 1 ? "　↗" : "↙　" ,  
+                        close = tick.close,
+                        total_amount = tick.total_amount / 100_000_000,
+                        chg_type = tick.chg_type,  // 2漲、3平、4跌 ☛ 好像只是相對昨收今平，而不是tick的即時狀況
                     };
-                    _temp.Add(rec); 
-                    Console.WriteLine(_temp.Where(x => x.code.Contains("QFF")).Select(x => x).LastOrDefault());
-                    Console.WriteLine("======================================================================");
-                    Console.WriteLine(_temp.Where(x => x.code != "").Select(x => x));
+                    _temp.Add(rec);
+                    var data = _temp.GroupBy(item => item.code).Select(group => group.Last()).OrderByDescending(item => item.total_amount).ToList();
+                    Console.WriteLine(string.Join("\n", data));
+                    //int test = data.Count(x => x.tick_type == 1);
+                    Console.WriteLine($"成交重心有{data.Count(x => x.tick_type == 1)}/10檔在外盤");
+                    Console.WriteLine("======================================================================================");
+                    //Thread.Sleep(10_000);
                 }
                 _api.SetQuoteCallback_v1(myQuoteCB_v1);
-
-                //dynamic res = _temp.Where(x => x.GetType().GetProperty("code").GetValue(x) == "TXFB4").Last();
-                //var a = res.code;
-                //var b = res.tick_type;
-                //var c = res.chg_type;
-                //dynamic res1 = _temp.Where(x => x.GetType().GetProperty("code").GetValue(x) == "QFFB4").Last();
-                //var d = res1.code;
-                //var e = res1.tick_type;
-                //var f = res1.chg_type;
-                //string result = string.Join(", ", (a, b, c), (d, e, f));
-                //Console.WriteLine(result);
             }
             #endregion
 

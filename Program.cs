@@ -15,16 +15,16 @@ namespace ShioajiConsoleApp
         static void Main(string[] args)
         {
             SJ InitSJ = new();
-            InitSJ.Login(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
+            InitSJ.Login(@"D:\Sinopac.json");
             //==================================================================
             //InitSJ.testCallBack();
-            InitSJ.AmountRankSetQuoteCallback();
+            //InitSJ.AmountRankSetQuoteCallback();
 
-            //foreach (var i in InitSJ.ScannersChangePercentRank(50))
-            //{
-            //    i.Value.ForEach(Console.WriteLine);
-            //    Console.WriteLine();
-            //}
+            foreach (var i in InitSJ.ScannersChangePercentRank(50))
+            {
+                i.Value.ForEach(Console.WriteLine);
+                Console.WriteLine();
+            }
 
 
             //==================================================================

@@ -18,8 +18,10 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             {
                 SJ InitSJ = new();
                 InitSJ.Initialize(@"D:\Sinopac.json");
-                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
+                InitSJ.MxfMock();
                 /*=================================================
+                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
+
                 InitSJ.AmountRankSetQuoteCallback(15);
 
                 while (DateTime.Now < InitSJ.GetCallbackEndTime())
@@ -36,7 +38,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 Console.WriteLine($"An error occurred: {ex.Message}");
             }
         }
-]
+
 
         public class SJ
         {
@@ -146,12 +148,37 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
 
 
             #region !!Moving stop order
-            public void MxfMock(double argEntryPrice, double argStp)
+            public void MxfMock()  //double argEntryPrice, double argStp
             {
                 while (DateTime.Now < GetCallbackEndTime())
                 {
-                    Console.WriteLine($"Would Stop at {GetCallbackEndTime().ToString()}");
-                    // place order logic here
+                    Console.WriteLine($"Would Stop at {GetCallbackEndTime()}");
+
+                    List<Sinopac.Shioaji.FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
+                    if (_src.Any()) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
+                    {
+                        if (_src.Any(x => x.code.Contains("MXF")))
+                        {
+                            Console.WriteLine($"test{_src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl)}.");
+                        }
+                        else
+                        {
+                            if (_src.Any(x => x.code[8] < 'L'))
+                            {
+                                var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
+                                Console.WriteLine(string.Join("\n", data1));
+                            }
+                            else if (_src.Any(x => x.code[8] > 'L'))
+                            {
+                                var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
+                                Console.WriteLine(string.Join("\n", data1));
+                            }
+                            else
+                            {
+                                Console.WriteLine("空手沒部位");
+                            }
+                        }
+                    }
                     break;
                 }
             }

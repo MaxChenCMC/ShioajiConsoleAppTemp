@@ -83,8 +83,8 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 {
                     try
                     {
-                        string exchange = _api.Contracts.Stocks["TSE"].ContainsKey(code) ? "TSE" : "OTC";
-                        _api.Subscribe(_api.Contracts.Stocks[exchange][code], QuoteType.tick, version: QuoteVersion.v1);
+                        Exchange exchange = _api.Contracts.Stocks["TSE"].ContainsKey(code) ? "TSE" : "OTC";
+                        _api.Subscribe(_api.Contracts.Stocks[exchange.ToString()][code], QuoteType.tick, version: QuoteVersion.v1);
                     }
                     catch (Exception ex)
                     {

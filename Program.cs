@@ -18,18 +18,12 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             {
                 SJ InitSJ = new();
                 InitSJ.Initialize(@"D:\Sinopac.json");
-                InitSJ.MxfMock();
                 /*=================================================
-                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
 
+
+                InitSJ.Pnl("2024-01-18", "2024-01-18");
                 InitSJ.AmountRankSetQuoteCallback(15);
-
-                while (DateTime.Now < InitSJ.GetCallbackEndTime())
-                {
-                    // MxfMock(double argEntryPrice, double argStp)
-                }
-
-                InitSJ.Pnl("2024-01-10", "2024-01-10");
+                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
                 =================================================*/
                 Console.ReadLine();
             }
@@ -81,7 +75,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 return date.ToString("yyyy-MM-dd");
             }
 
-            public DateTime GetCallbackEndTime()
+            private DateTime GetCallbackEndTime()
             {
                 DateTime DTN = DateTime.Now;
                 bool preMktTime = DTN < DTN.Date + new TimeSpan(5, 00, 0);
@@ -92,7 +86,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region !! dateformate, amt rank code to ist, subscibe,
+            #region dateformate, amt rank code to ist, subscibe,
             public void AmountRankSetQuoteCallback(int TopN)
             {
                 List<string> GetAmountRankCodes = _api.Scanners(scannerType: ScannerType.AmountRank, date: GetValidDate(), count: TopN)
@@ -110,8 +104,6 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                         Console.WriteLine($"Failed to subscribe to stock {code}: {ex.Message}");
                     }
                 }
-
-                // need to regulate format in advanced
                 _api.SetQuoteCallback_v1(myQuoteCB_v1);
             }
 
@@ -147,25 +139,33 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region !!Moving stop order
+            #region ▲ Moving stop order
             public void MxfMock()  //double argEntryPrice, double argStp
             {
+                int retPrice = 0;
                 while (DateTime.Now < GetCallbackEndTime())
                 {
                     Console.WriteLine($"Would Stop at {GetCallbackEndTime()}");
 
-                    List<Sinopac.Shioaji.FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
+                    List<FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
                     if (_src.Any()) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
                     {
                         if (_src.Any(x => x.code.Contains("MXF")))
                         {
                             Console.WriteLine($"test{_src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl)}.");
+                            //
+                            retPrice = _src.Where(x => x.code.Contains("MXF")).Select(x => (int)x.price).First();
+
+
+
+                            MXFPlaceOrder(retPrice, true, false);
                         }
                         else
                         {
                             if (_src.Any(x => x.code[8] < 'L'))
                             {
                                 var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
+
                                 Console.WriteLine(string.Join("\n", data1));
                             }
                             else if (_src.Any(x => x.code[8] > 'L'))
@@ -179,7 +179,37 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                             }
                         }
                     }
-                    break;
+                    else break;
+                }
+            }
+
+
+            public void MXFPlaceOrder(int placePrice, bool isPrintResult, bool isIntraday)
+            {
+                var _contract = _api.Contracts.Futures["MXF"]["MXFR1"];
+                var _futOptOrder = new FutOptOrder()
+                {
+                    action = "Buy",
+                    price = placePrice,
+                    quantity = 1,
+                    price_type = "LMT",
+                    order_type = "ROD",
+                    octype = isIntraday ? "DayTrade" : "",
+                };
+                var _trade = _api.PlaceOrder(_contract, _futOptOrder);
+
+                if (isPrintResult)
+                {
+                    var ret = new
+                    {
+                        op_type = _trade.operation.op_type,
+                        action = _trade.order.action,
+                        price = _trade.order.price,
+                        modified_price = _trade.status.modified_price,
+                        cancel_quantity = _trade.status.cancel_quantity,
+                        code = _trade.contract.code,
+                    };
+                    Console.WriteLine(string.Join("\n", ret));
                 }
             }
             #endregion
@@ -210,7 +240,6 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                         MonthlyAveragePrice = item.MonthlyAveragePrice,
                     };
                     _temp.Add(rec);
-
                 }
 
                 var obj_IContracts = new List<IContract>();
@@ -231,8 +260,6 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     };
                     _temp1.Add(rec);
                 }
-
-
                 Console.WriteLine(string.Join("\n", _temp));
                 Console.WriteLine(_temp.Select(x => x.Code).ToList());
                 Console.WriteLine(string.Join("\n", _temp1));

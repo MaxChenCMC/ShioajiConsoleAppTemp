@@ -19,8 +19,9 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 SJ InitSJ = new();
                 //InitSJ.Initialize(@"D:\Sinopac.json");
                 InitSJ.Initialize(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
-                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
+                InitSJ.MxfMock();
                 /*=================================================
+                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
                 InitSJ.Pnl("2024-01-10", "2024-01-10");
                 InitSJ.AmountRankSetQuoteCallback(15);
 
@@ -55,6 +56,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     string apiKey = root.GetProperty("API_Key").GetString();
                     string secretKey = root.GetProperty("Secret_Key").GetString();
                     _api.Login(apiKey, secretKey);
+                    _api.ca_activate(@"D:\Sinopac.pfx", root.GetProperty("ca_passwd").GetString(), root.GetProperty("person_id").GetString());
                 }
                 catch (Exception ex)
                 {
@@ -146,24 +148,21 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     Console.WriteLine($"Would Stop at {GetCallbackEndTime()}");
 
                     List<FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
-                    if (_src.Any()) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
+                    //if (_src.Any()) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
+                    if (false) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
                     {
                         if (_src.Any(x => x.code.Contains("MXF")))
                         {
                             Console.WriteLine($"test{_src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl)}.");
                             //
                             retPrice = _src.Where(x => x.code.Contains("MXF")).Select(x => (int)x.price).First();
-
-
-
-                            MXFPlaceOrder(retPrice, true, false);
+                            
                         }
                         else
                         {
                             if (_src.Any(x => x.code[8] < 'L'))
                             {
                                 var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
-
                                 Console.WriteLine(string.Join("\n", data1));
                             }
                             else if (_src.Any(x => x.code[8] > 'L'))
@@ -173,18 +172,22 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                             }
                             else
                             {
-                                Console.WriteLine("空手沒部位");
+                                Console.WriteLine("有部位但非小台或OP");
                             }
                         }
                     }
-                    else break;
+                    else 
+                    {
+                        MXFPlaceOrder(17000, true);
+                    }
+                    break;
                 }
             }
 
 
-            public void MXFPlaceOrder(int placePrice, bool isPrintResult, bool isIntraday)
+            public void MXFPlaceOrder(int placePrice, bool isPrintResult)//, bool isIntraday
             {
-                var _contract = _api.Contracts.Futures["MXF"]["MXFR1"];
+                var _contract = _api.Contracts.Futures["MXF"]["MXF202402"];
                 var _futOptOrder = new FutOptOrder()
                 {
                     action = "Buy",
@@ -192,7 +195,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     quantity = 1,
                     price_type = "LMT",
                     order_type = "ROD",
-                    octype = isIntraday ? "DayTrade" : "",
+                    //octype = isIntraday ? "DayTrade" : "",
                 };
                 var _trade = _api.PlaceOrder(_contract, _futOptOrder);
 
@@ -200,14 +203,17 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 {
                     var ret = new
                     {
-                        op_type = _trade.operation.op_type,
-                        action = _trade.order.action,
+                        //要把原廠Log改成false不然很煩
+                        status = _trade.status.status,
                         price = _trade.order.price,
-                        modified_price = _trade.status.modified_price,
+                        deal_quantity = _trade.status.deal_quantity,
                         cancel_quantity = _trade.status.cancel_quantity,
-                        code = _trade.contract.code,
+                        action = _trade.order.action,
+                        //order_lot = _trade.order.order_lot,
+                        //quantity = _trade.order.quantity,
+                        //seqno = _trade.order.seqno,  // 234925
                     };
-                    Console.WriteLine(string.Join("\n", ret));
+                    Console.WriteLine("委託細節" + string.Join(", ", ret));
                 }
             }
             #endregion

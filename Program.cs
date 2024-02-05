@@ -17,13 +17,14 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             try
             {
                 SJ InitSJ = new();
-                InitSJ.Initialize(@"D:\Sinopac.json");
-                /*=================================================
-
-
-                InitSJ.Pnl("2024-01-18", "2024-01-18");
-                InitSJ.AmountRankSetQuoteCallback(15);
+                //InitSJ.Initialize(@"D:\Sinopac.json");
+                InitSJ.Initialize(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
                 InitSJ.ChangePercentRankAboveMonthlyAvg(20);
+                /*=================================================
+                InitSJ.Pnl("2024-01-10", "2024-01-10");
+                InitSJ.AmountRankSetQuoteCallback(15);
+
+
                 =================================================*/
                 Console.ReadLine();
             }
@@ -36,7 +37,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
 
         public class SJ
         {
-            #region login status can keeped.
+            #region login exception handling. 路徑不會變的話沒必要寫這麼複雜
             private Shioaji _api;
 
             public void Initialize(string path)
@@ -44,7 +45,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 _api = new Shioaji();
                 if (!File.Exists(path))
                 {
-                    throw new FileNotFoundException($"壹! File not found: {path}");
+                    throw new FileNotFoundException($"File not found: {path}");
                 }
 
                 try
@@ -57,13 +58,13 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("貮! Failed to login to Shioaji API.", ex);
+                    throw new Exception("Failed to login to Shioaji API.", ex);
                 }
             }
             #endregion
 
 
-            #region general time setting
+            #region general time setting. 判斷盤中SetQuoteCallback何時停止；若六日也要測試應自動換成最近一個交易日
             private string GetValidDate()
             {
                 DateTime date = DateTime.Now.DayOfWeek switch
@@ -86,7 +87,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region dateformate, amt rank code to ist, subscibe,
+            #region Rank heavy weight traded amount stocks and quote few properties, refine this properties as some indicators. 盤中成交重心有N檔是追價成交，預期預高越可能推動指數
             public void AmountRankSetQuoteCallback(int TopN)
             {
                 List<string> GetAmountRankCodes = _api.Scanners(scannerType: ScannerType.AmountRank, date: GetValidDate(), count: TopN)
@@ -108,12 +109,9 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             }
 
 
-            //List<dynamic> _temp = new List<dynamic>();
+            List<dynamic> _temp = new List<dynamic>();
             void myQuoteCB_v1(Exchange exchange, dynamic tick)
             {
-                // _若放這會不會一直被洗掉?無法累積齊TopN？若執行超多次不重複股票仍兩三檔而已那就是_temp不該放這 而是該放myQuoteCB_v1同層
-                List<dynamic> _temp = new List<dynamic>();
-
                 var rec = new
                 {
                     ts = DateTime.ParseExact(tick.datetime, "yyyy/MM/dd HH:mm:ss.ffffff", System.Globalization.CultureInfo.InvariantCulture)
@@ -121,8 +119,8 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     code = tick.code,
                     tick_type = tick.tick_type,
                     close = tick.close,
-                    total_amount = tick.total_amount / 100_000_000,
-                    sentiment = (tick.close - tick.low) / (tick.high - tick.low),
+                    total_amount = Math.Round(tick.total_amount / 100_000_000, 2),
+                    sentiment = Math.Round((tick.close - tick.low) / (tick.high - tick.low) * 100, 2),
                 };
                 _temp.Add(rec);
 
@@ -132,9 +130,9 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     .ToList();
 
                 Console.WriteLine(string.Join("\n", data));
-                Console.WriteLine($"Todays focus {data.Count(x => x.tick_type == 1)} dealed at ask price");
-                Console.WriteLine($"sentiment {data.Average(x => x.sentiment * 100)}%");
-                Console.WriteLine("======================================================================================");
+                Console.WriteLine($"AmountRank top 15, {data.Count(x => x.tick_type == 1)} stocks traded at ASK price");
+                Console.WriteLine($"Sentiment { (int)data.Average(x => (decimal)x.sentiment)}%");
+                Console.WriteLine("======================================================================================================");
             }
             #endregion
 
@@ -268,6 +266,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
+            #region History profit and loss log. 歷史損益API雖設計支援日期區間，但現行日期區間多日會報錯entry_price不可為{null}
             public void Pnl(string bgn, string end)
             {
                 try
@@ -288,6 +287,8 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
                     Console.WriteLine($"Failed {ex.Message}");
                 }
             }
+            #endregion
+
         }
     }
 }

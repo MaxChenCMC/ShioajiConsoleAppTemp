@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 
 
 namespace Shioaji_SetQuoteCallback_PlaceOrder
@@ -17,16 +18,15 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             try
             {
                 SJ InitSJ = new();
-                //InitSJ.Initialize(@"D:\Sinopac.json");
-                InitSJ.Initialize(@"D:\DotnetReactShioaji\DotnetReactShioaji\Sinopac.json");
-                InitSJ.MxfMock();
-                /*=================================================
-                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
-                InitSJ.Pnl("2024-01-10", "2024-01-10");
+                InitSJ.Initialize(@"D:\Sinopac.json", @"D:\Sinopac.pfx");
+
+                InitSJ.TXFInspectAndPlaceOrder(10);
+                /*============================================
                 InitSJ.AmountRankSetQuoteCallback(15);
 
-
-                =================================================*/
+                InitSJ.ChangePercentRankAboveMonthlyAvg(20);
+                InitSJ.Pnl("2024-01-10", "2024-01-10");
+                ============================================*/
                 Console.ReadLine();
             }
             catch (Exception ex)
@@ -41,22 +41,23 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #region login exception handling. 路徑不會變的話沒必要寫這麼複雜
             private Shioaji _api;
 
-            public void Initialize(string path)
+            public void Initialize(string path1, string path2)
             {
                 _api = new Shioaji();
-                if (!File.Exists(path))
+                if (!File.Exists(path1) && !File.Exists(path2))
                 {
-                    throw new FileNotFoundException($"File not found: {path}");
+                    throw new FileNotFoundException($"File not found: {path1}");
+                    throw new FileNotFoundException($"File not found: {path2}");
                 }
 
                 try
                 {
-                    string jsonString = File.ReadAllText(path);
+                    string jsonString = File.ReadAllText(path1);
                     JsonElement root = JsonDocument.Parse(jsonString).RootElement;
                     string apiKey = root.GetProperty("API_Key").GetString();
                     string secretKey = root.GetProperty("Secret_Key").GetString();
                     _api.Login(apiKey, secretKey);
-                    _api.ca_activate(@"D:\Sinopac.pfx", root.GetProperty("ca_passwd").GetString(), root.GetProperty("person_id").GetString());
+                    _api.ca_activate(path2, root.GetProperty("ca_passwd").GetString(), root.GetProperty("person_id").GetString());
                 }
                 catch (Exception ex)
                 {
@@ -89,7 +90,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region Rank heavy weight traded amount stocks and quote few properties, refine this properties as some indicators. 盤中成交重心有N檔是追價成交，預期預高越可能推動指數
+            #region Feeling the prosperity or market by top n trade amount stocks. 盤中成交重心有N檔是追價成交，預期預高越可能推動指數
             public void AmountRankSetQuoteCallback(int TopN)
             {
                 List<string> GetAmountRankCodes = _api.Scanners(scannerType: ScannerType.AmountRank, date: GetValidDate(), count: TopN)
@@ -139,55 +140,71 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region ▲ Moving stop order
-            public void MxfMock()  //double argEntryPrice, double argStp
+            #region depends on pnl of position to break or not. 有部位就依成本價「移動停利、保本or停損」，若無部位就建新倉後依據前面3種情境出場
+            public void TXFInspectAndPlaceOrder(double StopLossMargin)
             {
-                int retPrice = 0;
+                List<double> SwingHighs = new List<double>();
+                _api.Subscribe(_api.Contracts.Futures["TXF"]["TXFR1"], QuoteType.tick, version: QuoteVersion.v1);
+                void TXFR1QuoteCB(Exchange exchange, dynamic tick)
+                {
+                    SwingHighs.Add((double)tick.close);
+                    Console.WriteLine($"目前記了{SwingHighs.Count()}筆，最高點{SwingHighs.Max()}，最新報價{SwingHighs.Last()}");
+                }
+                _api.SetQuoteCallback_v1(TXFR1QuoteCB);
+
+
                 while (DateTime.Now < GetCallbackEndTime())
                 {
-                    Console.WriteLine($"Would Stop at {GetCallbackEndTime()}");
-
-                    List<FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
-                    //if (_src.Any()) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
-                    if (false) // 若要mxf 雙sell + BP才監控的話就可用 src.Count(x=x.code.Contains() && .....).Any()
+                    Console.WriteLine($"放著不管的話預計{GetCallbackEndTime()}退出");
+                    List<Sinopac.Shioaji.FuturePosition> _src = _api.ListPositions(_api.FutureAccount);
+                    if (_src.Any(x => x.code.Contains("MXF")))
                     {
-                        if (_src.Any(x => x.code.Contains("MXF")))
+                        double EntryPrice = (double)_src.Where(x => x.code.Contains("MXF")).Select(x => x.price).FirstOrDefault();
+                        if (SwingHighs.Max() >= EntryPrice + StopLossMargin)
                         {
-                            Console.WriteLine($"test{_src.Where(x => x.code.Contains("MXF")).Select(x => x.pnl)}.");
-                            //
-                            retPrice = _src.Where(x => x.code.Contains("MXF")).Select(x => (int)x.price).First();
-                            
-                        }
-                        else
-                        {
-                            if (_src.Any(x => x.code[8] < 'L'))
+                            EntryPrice += 2;
+                            Console.WriteLine($"已拉開故到{EntryPrice}才會被掃出場");
+
+                            if (SwingHighs.Last() <= (SwingHighs.Max() - StopLossMargin))
                             {
-                                var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
-                                Console.WriteLine(string.Join("\n", data1));
+                                //視部位反向沖掉，掛在SwingHighs.Last() ☛ 成交回報
+                                break;
                             }
-                            else if (_src.Any(x => x.code[8] > 'L'))
+                            else if (SwingHighs.Last() <= EntryPrice)
                             {
-                                var data1 = _src.Select(x => new { x.price, x.last_price, x.pnl });
-                                Console.WriteLine(string.Join("\n", data1));
+                                //視部位反向沖掉，掛在SwingHighs.Last() ☛ 成交回報
+                                break;
                             }
                             else
                             {
-                                Console.WriteLine("有部位但非小台或OP");
+                                Console.WriteLine("既沒拉回，也沒保本，硬撐中");
                             }
                         }
+                        else if (SwingHighs.Last() < EntryPrice - StopLossMargin)
+                        {
+                            //視部位反向沖掉，掛在SwingHighs.Last() ☛ 成交回報
+                            break;
+                        }
+                        else
+                        {
+                            Console.WriteLine("既沒拉開，也沒停損，硬撐中");
+                        }
                     }
-                    else 
+                    else
                     {
-                        MXFPlaceOrder(17000, true);
+                        Console.WriteLine($"沒有小台的部位");
+                        // MXFPlaceOrder("MXF202402", 17000, true)
+                        // 確定成交後再回來迴圈
                     }
-                    break;
+                    Thread.Sleep(30_000);
+                    //Console.WriteLine("小台積期：" + _api.Snapshots(new List<IContract>() { _api.Contracts.Futures["QFF"]["QFFR1"] })[0].close);
                 }
             }
 
 
-            public void MXFPlaceOrder(int placePrice, bool isPrintResult)//, bool isIntraday
+            public void MXFPlaceOrder(string mxfCode, int placePrice, bool isPrintResult)//, bool isIntraday
             {
-                var _contract = _api.Contracts.Futures["MXF"]["MXF202402"];
+                var _contract = _api.Contracts.Futures["MXF"][mxfCode];
                 var _futOptOrder = new FutOptOrder()
                 {
                     action = "Buy",
@@ -219,7 +236,7 @@ namespace Shioaji_SetQuoteCallback_PlaceOrder
             #endregion
 
 
-            #region !!強勢股  ScannersChangePercentRank()
+            #region !!強勢股
             public List<dynamic> ChangePercentRankAboveMonthlyAvg(int TopN)
             {
                 List<string> GetChangePercentRankCodes = _api.Scanners(scannerType: ScannerType.ChangePercentRank, date: GetValidDate(), count: TopN)

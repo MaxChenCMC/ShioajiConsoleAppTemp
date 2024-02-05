@@ -7,3 +7,9 @@ InitSJ.AmountRankSetQuoteCallback(15);
 ```
 
 ![simulation](https://i.imgur.com/RO3PpRc.png)
+
+
+```C#
+InitSJ.Pnl("2024-01-10", "2024-01-10");
+```
+![simulation]([https://i.imgur.com/RO3PpRc.png](https://imgur.com/ASqckqe)https://imgur.com/ASqckqe)

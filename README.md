@@ -1,4 +1,9 @@
-ipynb是測試用的，寫法大致無誤會謄到Program.cs
+目前支援：
+● 盤中成交重心的報價與2個自訂指標
+● 盤中漲幅排行中，站上月線的標的
+● 歷史損益
+● MXF下單與回報
+btw: ipynb is a prototype, the executable code would be compacked as a method in Program.cs  
 
 ```C#
 SJ InitSJ = new();

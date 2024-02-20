@@ -3,6 +3,7 @@
 >* 盤中漲幅排行中，站上月線的標的
 >* 歷史損益
 >* MXF下單與回報
+
 btw: ipynb is a prototype, the executable code would be compacked as a method in Program.cs  
 
 ```C#
